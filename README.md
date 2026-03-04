@@ -19,7 +19,7 @@ py main.py
 ```
 
 # 3. Abrir en el navegador
-Ve a: **http://localhost:5000**
+Ve a: **http://localhost:8000**
 
 ---
 
