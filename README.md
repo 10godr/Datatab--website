@@ -1,11 +1,10 @@
-# DataTab 📊
-**Creado por Diego Rodríguez**
+# DataTab 
 
 Aplicación web para análisis estadístico de archivos Excel.
 
 ---
 
-## Cómo ejecutar el proyecto en tu PC
+# Cómo ejecutar el proyecto en tu PC
 
 ### 1. Instalar dependencias (solo la primera vez)
 Abre una terminal en la carpeta del proyecto y ejecuta:
@@ -14,17 +13,17 @@ Abre una terminal en la carpeta del proyecto y ejecuta:
 py -m pip install fastapi uvicorn[standard] pandas openpyxl python-multipart jinja2
 ```
 
-### 2. Ejecutar el servidor
+# 2. Ejecutar el servidor
 ```bash
 py main.py
 ```
 
-### 3. Abrir en el navegador
+# 3. Abrir en el navegador
 Ve a: **http://localhost:5000**
 
 ---
 
-## Estructura del proyecto
+# Estructura del proyecto
 ```
 datatab/
 ├── main.py               ← Backend (Flask + Pandas)
