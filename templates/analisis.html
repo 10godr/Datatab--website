@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DataTab - Análisis</title>
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- DM Sans (cuerpo) + DM Serif Display (títulos) — mismas fuentes que en el index -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#2E7D32",
+            "primary-light": "#388E3C",
+            "background-light": "#F1F8E9",
+            "background-dark": "#0f1a10",
+            "card-light": "#FFFFFF",
+            "card-dark": "#1a2e1b",
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    body        { font-family: 'DM Sans', sans-serif; }
+    .font-display { font-family: 'DM Serif Display', serif; }
+    .ios-blur   { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+
+    /* Scrollbar sutil */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+    .dark ::-webkit-scrollbar-thumb { background: #3a3a3a; }
+
+    /* Spinner */
+    .spinner { border: 3px solid #e5e7eb; border-top-color: #2E7D32; border-radius: 50%; width: 26px; height: 26px; animation: spin 0.75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Tags de rangos */
+    .rango-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(46,125,50,0.12); color: #2E7D32;
+      border: 1px solid rgba(46,125,50,0.2);
+      border-radius: 999px; padding: 3px 11px;
+      font-size: 12px; font-weight: 600;
+    }
+    .dark .rango-tag { background: rgba(46,125,50,0.2); border-color: rgba(46,125,50,0.3); color: #66bb6a; }
+
+    /* Filas tabla vista de datos más visibles */
+    .data-row td { color: #334155; font-size: 13px; font-weight: 450; }
+    .dark .data-row td { color: #cbd5e1; }
+    .data-row:hover { background: rgba(46,125,50,0.04); }
+    .dark .data-row:hover { background: rgba(46,125,50,0.08); }
+  </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200 min-h-screen transition-colors duration-300">
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-50 ios-blur bg-white/80 dark:bg-black/60 border-b border-slate-200 dark:border-slate-800 px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary text-2xl">bar_chart</span>
+      <span class="font-display text-xl text-primary">DataTab</span>
+    </div>
+    <div class="flex items-center gap-5">
+      <a href="/" class="text-slate-500 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors">Inicio</a>
+      <button class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              onclick="document.documentElement.classList.toggle('dark'); if(miChartInstance) analizar()">
+        <span class="material-symbols-outlined text-[18px] dark:hidden text-slate-500">light_mode</span>
+        <span class="material-symbols-outlined text-[18px] hidden dark:block text-slate-400">dark_mode</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- FILA SUPERIOR -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+
+      <!-- ── HERRAMIENTAS ── -->
+      <div class="bg-card-light dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 flex flex-col gap-5">
+
+        <h2 class="font-display text-2xl text-slate-800 dark:text-white">Herramientas de Análisis</h2>
+
+        <!-- Selector columna -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide text-[11px]">Seleccionar Columna</label>
+          <div class="relative">
+            <select id="columnaSelect"
+              class="w-full bg-background-light dark:bg-slate-800 border border-green-200 dark:border-green-900/60 rounded-xl py-3 px-4 appearance-none focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm font-medium text-slate-700 dark:text-slate-200">
+              <option value="">Elige una columna...</option>
+              {% for col in columnas %}
+              <option value="{{ col }}">{{ col }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xl">expand_more</span>
+          </div>
+        </div>
+
+        <!-- Sección rangos — SOLO aparece si columna numérica (controlado desde JS) -->
+        <div id="seccionRangos" class="hidden">
+          <div class="border-t border-slate-100 dark:border-slate-800 pt-5">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-[11px] font-bold text-primary uppercase tracking-widest">Definir Rangos</h3>
+              <span class="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">opcional</span>
+            </div>
+
+            <!-- Instrucción clara -->
+            <div class="bg-primary/5 dark:bg-primary/10 border border-primary/15 rounded-xl p-3 mb-3">
+              <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Escribe un rango en el campo y presiona <strong>+</strong> para agregarlo.<br>
+                <span class="text-slate-400">Ejemplos válidos:</span>
+                <span class="font-mono text-primary font-semibold">&lt;30</span> ·
+                <span class="font-mono text-primary font-semibold">30-39</span> ·
+                <span class="font-mono text-primary font-semibold">40+</span> ·
+                <span class="font-mono text-primary font-semibold">&gt;=60</span>
+              </p>
+            </div>
+
+            <!-- Tags de rangos activos -->
+            <div id="rangosActivos" class="flex flex-wrap gap-2 mb-3 min-h-[28px]"></div>
+
+            <!-- Input + botón agregar -->
+            <div class="flex gap-2">
+              <input id="rangoInput" type="text" placeholder="ej: 30-39"
+                class="flex-1 bg-background-light dark:bg-slate-800 border border-green-200 dark:border-green-900/60 rounded-lg text-sm font-medium p-2.5 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none placeholder-slate-300 dark:placeholder-slate-600"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();agregarRango()}">
+              <button onclick="agregarRango()"
+                class="px-3.5 py-2 bg-primary text-white rounded-lg text-sm font-semibold flex items-center gap-1 hover:bg-primary-light transition-colors shadow-sm">
+                <span class="material-symbols-outlined text-base">add</span>
+              </button>
+            </div>
+
+            <button onclick="limpiarRangos()" class="mt-2 text-xs text-slate-400 hover:text-red-400 transition-colors flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">delete</span> Limpiar todos los rangos
+            </button>
+          </div>
+        </div>
+
+        <!-- Botón Analizar -->
+        <button id="btnAnalizar" onclick="analizar()"
+          class="w-full py-3 px-4 bg-primary text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary-light transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-primary/20"
+          disabled>
+          <span class="material-symbols-outlined text-lg">analytics</span>
+          Analizar
+        </button>
+
+        <!-- Cargar otro archivo -->
+        <a href="/"
+          class="w-full py-2.5 px-4 border border-primary/25 text-primary rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-primary/5 transition-all text-sm">
+          <span class="material-symbols-outlined text-lg">refresh</span>
+          Cargar otro archivo
+        </a>
+
+        <!-- Info archivo -->
+        <div class="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3.5 border border-slate-100 dark:border-slate-700/50">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Archivo cargado</p>
+          <p class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{{ filename }}</p>
+          <p class="text-xs text-slate-400 mt-1">{{ total_filas }} filas · {{ columnas|length }} columnas</p>
+        </div>
+      </div>
+
+      <!-- ── TABLA DE FRECUENCIAS ── -->
+      <div class="bg-card-light dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
+        <h2 class="font-display text-2xl text-slate-800 dark:text-white mb-1">Panel de Análisis</h2>
+        <p id="subtituloPanel" class="text-xs text-slate-400 mb-5 font-medium">Selecciona una columna para comenzar el análisis.</p>
+
+        <!-- Estado vacío -->
+        <div id="estadoVacio" class="flex flex-col items-center justify-center h-52 text-center">
+          <span class="material-symbols-outlined text-5xl text-slate-200 dark:text-slate-700 mb-3">table_chart</span>
+          <p class="text-slate-400 text-sm font-medium">Los resultados aparecerán aquí.</p>
+        </div>
+
+        <!-- Loading -->
+        <div id="loadingPanel" class="hidden flex-col items-center justify-center h-52">
+          <div class="spinner mb-3"></div>
+          <p class="text-slate-400 text-sm font-medium">Calculando frecuencias...</p>
+        </div>
+
+        <!-- Tabla -->
+        <div id="tablaResultados" class="hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="border-b border-slate-100 dark:border-slate-800">
+                  <th class="py-2.5 font-bold text-[11px] uppercase tracking-widest text-slate-400">Valor</th>
+                  <th class="py-2.5 font-bold text-[11px] uppercase tracking-widest text-slate-400 text-center">Frecuencia</th>
+                  <th class="py-2.5 font-bold text-[11px] uppercase tracking-widest text-slate-400 text-right">Porcentaje</th>
+                </tr>
+              </thead>
+              <tbody id="tablaBody" class="divide-y divide-slate-50 dark:divide-slate-800/60"></tbody>
+              <tfoot>
+                <tr class="border-t-2 border-slate-200 dark:border-slate-700">
+                  <td class="py-3 font-bold text-sm text-slate-700 dark:text-slate-200">Total</td>
+                  <td id="totalFrecuencia" class="py-3 font-bold text-sm text-slate-700 dark:text-slate-200 text-center"></td>
+                  <td class="py-3 font-bold text-sm text-primary text-right">100%</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── GRÁFICO ── -->
+      <div class="bg-card-light dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
+        <h2 class="font-display text-2xl text-slate-800 dark:text-white mb-1">Gráfico de Barras</h2>
+        <p class="text-xs text-slate-400 mb-5 font-medium">Pasa el mouse sobre una barra para ver detalles.</p>
+
+        <div id="graficoVacio" class="flex flex-col items-center justify-center h-52 text-center">
+          <span class="material-symbols-outlined text-5xl text-slate-200 dark:text-slate-700 mb-3">bar_chart</span>
+          <p class="text-slate-400 text-sm font-medium">El gráfico aparecerá aquí.</p>
+        </div>
+
+        <div id="graficoContenedor" class="hidden">
+          <canvas id="miGrafico"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VISTA DE DATOS ── -->
+    <div class="bg-card-light dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h2 class="font-display text-2xl text-slate-800 dark:text-white">Vista de Datos</h2>
+          <p class="text-xs text-slate-400 mt-0.5 font-medium">Mostrando todas las filas de tu archivo.</p>
+        </div>
+        <span class="text-[11px] px-3 py-1.5 bg-primary/10 dark:bg-primary/20 text-primary rounded-full font-bold uppercase tracking-wider">
+          {{ total_filas }} FILAS
+        </span>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+        <table class="w-full text-left">
+          <thead class="bg-slate-50 dark:bg-slate-800/60">
+            <tr>
+              {% for col in preview_cols %}
+              <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 whitespace-nowrap border-b border-slate-200 dark:border-slate-700">{{ col }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+            {% for row in preview_rows %}
+            <tr class="data-row transition-colors">
+              {% for cell in row %}
+              <td class="px-4 py-3 whitespace-nowrap max-w-[220px] overflow-hidden text-ellipsis">{{ cell }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="mt-8 px-6 py-6 border-t border-slate-100 dark:border-slate-800 text-center space-y-1">
+    <p class="text-xs text-slate-400">© 2025 DataTab v2.0</p>
+    <p class="text-[11px] text-slate-400">Creado por <span class="text-slate-600 dark:text-slate-300 font-semibold">Diego Rodríguez</span></p>
+  </footer>
+
+  <!-- ══════════════════════════════════
+       JAVASCRIPT
+  ══════════════════════════════════ -->
+  <script>
+    let miChartInstance = null;
+    let rangosDefinidos = [];
+    let ultimaEsNumerica = false;
+
+    const columnaSelect = document.getElementById('columnaSelect');
+    const btnAnalizar   = document.getElementById('btnAnalizar');
+    const seccionRangos = document.getElementById('seccionRangos');
+
+    // Al cambiar columna: habilitar botón, ocultar rangos hasta saber si es numérica
+    columnaSelect.addEventListener('change', () => {
+      const val = columnaSelect.value;
+      btnAnalizar.disabled = !val;
+      // Ocultar rangos hasta que analicemos y sepamos si es numérica
+      seccionRangos.classList.add('hidden');
+      rangosDefinidos = [];
+      renderizarTags();
+      // Limpiar resultados anteriores
+      document.getElementById('estadoVacio').classList.remove('hidden');
+      document.getElementById('tablaResultados').classList.add('hidden');
+      document.getElementById('graficoVacio').classList.remove('hidden');
+      document.getElementById('graficoContenedor').classList.add('hidden');
+      document.getElementById('subtituloPanel').textContent = 'Selecciona una columna para comenzar el análisis.';
+    });
+
+    // ── RANGOS ──
+    function agregarRango() {
+      const input = document.getElementById('rangoInput');
+      const val = input.value.trim();
+      if (!val || rangosDefinidos.includes(val)) { input.value = ''; return; }
+      rangosDefinidos.push(val);
+      renderizarTags();
+      input.value = '';
+      input.focus();
+    }
+
+    function eliminarRango(idx) {
+      rangosDefinidos.splice(idx, 1);
+      renderizarTags();
+    }
+
+    function limpiarRangos() {
+      rangosDefinidos = [];
+      renderizarTags();
+    }
+
+    function renderizarTags() {
+      const contenedor = document.getElementById('rangosActivos');
+      contenedor.innerHTML = '';
+      rangosDefinidos.forEach((r, i) => {
+        const tag = document.createElement('span');
+        tag.className = 'rango-tag';
+        tag.innerHTML = `${r}<button onclick="eliminarRango(${i})" class="ml-1 opacity-60 hover:opacity-100 font-bold leading-none text-base">×</button>`;
+        contenedor.appendChild(tag);
+      });
+    }
+
+    // ── ANALIZAR ──
+    async function analizar() {
+      const columna = columnaSelect.value;
+      if (!columna) return;
+
+      document.getElementById('estadoVacio').classList.add('hidden');
+      document.getElementById('tablaResultados').classList.add('hidden');
+      document.getElementById('loadingPanel').classList.remove('hidden');
+      document.getElementById('loadingPanel').classList.add('flex');
+      document.getElementById('graficoVacio').classList.add('hidden');
+      document.getElementById('graficoContenedor').classList.add('hidden');
+
+      try {
+        const resp = await fetch('/api/analizar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ columna, rangos: rangosDefinidos })
+        });
+
+        const datos = await resp.json();
+
+        if (datos.error) {
+          alert('Error: ' + datos.error);
+          document.getElementById('loadingPanel').classList.add('hidden');
+          document.getElementById('estadoVacio').classList.remove('hidden');
+          return;
+        }
+
+        // Mostrar / ocultar sección de rangos según tipo
+        ultimaEsNumerica = datos.es_numerica;
+        seccionRangos.classList.toggle('hidden', !datos.es_numerica);
+
+        // Subtítulo
+        document.getElementById('subtituloPanel').innerHTML =
+          `Columna: <strong class="text-primary font-semibold">${datos.columna}</strong> &nbsp;·&nbsp; ${datos.total} registros`;
+
+        // Renderizar tabla
+        const tbody = document.getElementById('tablaBody');
+        tbody.innerHTML = '';
+        const maxFrec = Math.max(...datos.frecuencias.map(f => f.frecuencia));
+
+        datos.frecuencias.forEach(row => {
+          const barPct = maxFrec > 0 ? (row.frecuencia / maxFrec * 100).toFixed(0) : 0;
+          const tr = document.createElement('tr');
+          tr.className = 'transition-colors';
+          tr.innerHTML = `
+            <td class="py-3 font-semibold text-slate-700 dark:text-slate-200">${row.valor}</td>
+            <td class="py-3 text-center">
+              <div class="flex items-center justify-center gap-2">
+                <div class="w-16 bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 hidden sm:block">
+                  <div class="bg-primary h-1.5 rounded-full" style="width:${barPct}%"></div>
+                </div>
+                <span class="font-semibold text-slate-700 dark:text-slate-200">${row.frecuencia}</span>
+              </div>
+            </td>
+            <td class="py-3 text-right font-bold text-primary">${row.porcentaje}%</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById('totalFrecuencia').textContent = datos.total;
+        document.getElementById('loadingPanel').classList.add('hidden');
+        document.getElementById('loadingPanel').classList.remove('flex');
+        document.getElementById('tablaResultados').classList.remove('hidden');
+
+        // Gráfico
+        renderizarGrafico(datos);
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('loadingPanel').classList.add('hidden');
+        document.getElementById('estadoVacio').classList.remove('hidden');
+        alert('Error de conexión con el servidor.');
+      }
+    }
+
+    // ── GRÁFICO ──
+    function renderizarGrafico(datos) {
+      document.getElementById('graficoVacio').classList.add('hidden');
+      document.getElementById('graficoContenedor').classList.remove('hidden');
+
+      const labels = datos.frecuencias.map(f => f.valor);
+      const values = datos.frecuencias.map(f => f.frecuencia);
+      const pcts   = datos.frecuencias.map(f => f.porcentaje);
+
+      const isDark    = document.documentElement.classList.contains('dark');
+      const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+      const tickColor = isDark ? '#94a3b8' : '#64748b';
+
+      if (miChartInstance) miChartInstance.destroy();
+
+      const ctx = document.getElementById('miGrafico').getContext('2d');
+      miChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Frecuencia',
+            data: values,
+            backgroundColor: isDark ? 'rgba(56,142,60,0.7)' : 'rgba(46,125,50,0.75)',
+            hoverBackgroundColor: '#2E7D32',
+            borderRadius: 7,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: isDark ? '#1e293b' : '#fff',
+              borderColor: isDark ? '#334155' : '#e2e8f0',
+              borderWidth: 1,
+              titleColor: isDark ? '#f1f5f9' : '#0f172a',
+              bodyColor: isDark ? '#94a3b8' : '#475569',
+              titleFont: { family: 'DM Sans', weight: '700', size: 13 },
+              bodyFont: { family: 'DM Sans', size: 12 },
+              padding: 10,
+              callbacks: {
+                label: (ctx) => {
+                  const idx = ctx.dataIndex;
+                  return `  Frecuencia: ${values[idx]}   (${pcts[idx]}%)`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: gridColor },
+              ticks: {
+                color: tickColor,
+                font: { family: 'DM Sans', size: 12, weight: '600' }
+              }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: gridColor },
+              ticks: {
+                color: tickColor,
+                font: { family: 'DM Sans', size: 12, weight: '600' },
+                stepSize: 1
+              }
+            }
+          }
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>
